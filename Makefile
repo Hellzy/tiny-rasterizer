@@ -4,7 +4,7 @@ CXXFLAGS ?= -std=c++17 -Wall -Wextra -pedantic
 CXXFLAGS += -g
 
 BIN=rasterizer
-OBJS=$(addprefix src/,main.o object.o)
+OBJS=$(addprefix src/,main.o object.o, rasterizer.o)
 
 all: $(BIN)
 
