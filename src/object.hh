@@ -1,4 +1,7 @@
 #pragma once
+
+#include <memory>
+
 #include "types.hh"
 
 /**
@@ -10,5 +13,5 @@ struct Object
 
 
   /** Color for the light, absorbtion for the primitives **/
-  rgb_vector_t col;
+  color_t col;
 };
