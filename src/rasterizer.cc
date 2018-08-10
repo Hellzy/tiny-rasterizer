@@ -44,9 +44,6 @@ void Rasterizer::compute()
 {
     project_scene();
 
-    //TODO: handle z-buffer
-    //TODO: loop over every pixel and check for collisions
-
     for (auto obj : scene_.objects)
     {
         for (size_t i = 0; i < scene_.height; ++i)
