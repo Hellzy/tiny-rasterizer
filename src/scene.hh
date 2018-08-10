@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "object.hh"
+#include "types.hh"
 
 struct Scene
 {
@@ -10,6 +11,6 @@ struct Scene
     size_t width;
     size_t height;
     std::vector<color_t> screen;
-    std::vector<Object> objects;
-    point_t eye;
+    std::vector<object_ptr_t> objects;
+    cam_t eye;
 };
