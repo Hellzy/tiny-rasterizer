@@ -1,4 +1,7 @@
 #pragma once
+
+#include <vector>
+
 #include "scene.hh"
 
 class Rasterizer
@@ -22,5 +25,9 @@ public:
     void compute();
 
 private:
+    void project_scene();
+
+private:
     Scene scene_;
+    std::vector<double> z_buffer;
 };
