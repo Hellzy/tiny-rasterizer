@@ -1,10 +1,13 @@
 CXX=g++
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -pedantic
-#ifdef DEBUG
+LDLIBS=-lm
+ifdef DEBUG
 CXXFLAGS += -g
+endif
 
 BIN=rasterizer
-OBJS=$(addprefix src/,main.o object.o, rasterizer.o)
+OBJS=$(addprefix src/,main.o object.o scene.o rasterizer.o input_parser.o\
+	 							triangle.o types.o utils.o)
 
 all: $(BIN)
 
