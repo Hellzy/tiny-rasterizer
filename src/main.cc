@@ -6,8 +6,8 @@
 int main()
 {
     Rasterizer r;
-    r.load_scene("pyramid.in");
+    r.load_scene("input/cube.in");
     r.compute();
-    r.write_scene("pyramid.ppm");
+    r.write_scene("output/cube.ppm");
     return 0;
 }
