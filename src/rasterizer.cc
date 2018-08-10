@@ -1,6 +1,5 @@
 #include <cmath>
 #include <fstream>
-#include <iostream>
 #include <limits>
 
 #include "input_parser.hh"
@@ -80,7 +79,6 @@ void Rasterizer::compute()
 
                         z_buffer[i * scene_.width + j] = z;
 
-                        std::cout << "pix in triangle\n";
                         pix.r = obj->col.r * 255.0;
                         pix.g = obj->col.g * 255.0;
                         pix.b = obj->col.b * 255.0;
