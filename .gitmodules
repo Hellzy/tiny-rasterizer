@@ -1,0 +1,3 @@
+[submodule "include/obj-parser"]
+	path = include/obj-parser
+	url = git@bitbucket.org:Hellzy/obj-parser.git
