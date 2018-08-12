@@ -1,5 +1,5 @@
 CXX=g++
-CPPFLAGS=-Iinclude/obj-parser/src
+CPPFLAGS=-Iinclude/obj-parser/src -Iinclude/
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -pedantic
 LDFLAGS=-Linclude/obj-parser/
 LDLIBS=-lm -lobjparser
@@ -10,7 +10,7 @@ endif
 PPMDIR=output
 BIN=rasterizer
 OBJS=$(addprefix src/,main.o object.o scene.o rasterizer.o input_parser.o\
-	 							triangle.o types.o utils.o)
+	 							triangle.o utils.o)
 
 all: libs $(BIN)
 
