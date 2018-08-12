@@ -4,35 +4,35 @@
 
 #include "input_parser.hh"
 #include "rasterizer.hh"
-#include "triangle.hh"
 #include "utils.hh"
 
 void Rasterizer::load_scene(const std::string& filename)
 {
     InputParser parser(filename);
-    scene_ = parser.scene_get();
-    z_buffer = std::vector<double>(scene_.width * scene_.height,
+    meshes_ = parser.meshes_get();
+    z_buffer_ = std::vector<double>(screen_w_ * screen_h_,
             std::numeric_limits<double>::max());
+    screen_ = std::vector<color_t>(screen_w_ * screen_h_);
 }
 
 void Rasterizer::write_scene(const std::string& filename) const
 {
   std::ofstream ofs(filename);
 
-  ofs << "P3\n" << scene_.width << ' ' << scene_.height << "\n255\n";
+  ofs << "P3\n" << screen_w_ << ' ' << screen_h_ << "\n255\n";
 
-  for (size_t i = 0; i < scene_.height; ++i)
+  for (size_t i = 0; i < screen_h_; ++i)
   {
-    for (size_t j = 0; j < scene_.width; ++j)
+    for (size_t j = 0; j < screen_w_ ; ++j)
     {
-        const auto& pix = scene_.screen[i * scene_.width + j];
+        const auto& pix = screen_[i * screen_w_ + j];
         int r = pix.r;
         int g = pix.g;
         int b = pix.b;
 
         ofs << r << ' ' << g << ' ' << b;
 
-        if (j < scene_.width - 1)
+        if (j < screen_w_ - 1)
             ofs << "  ";
     }
     ofs << '\n';
@@ -43,45 +43,60 @@ void Rasterizer::compute()
 {
     project_scene();
 
-    for (auto obj : scene_.objects)
+    for (auto& mesh : meshes_)
     {
-        for (size_t i = 0; i < scene_.height; ++i)
+        auto color = random_color();
+        for (size_t i = 0; i < screen_h_; ++i)
         {
-            for (size_t j = 0; j < scene_.width; ++j)
+            for (size_t j = 0; j < screen_w_; ++j)
             {
-                //FIXME: remove object abstraction, only work with triangle
-                //to trim a lot of useless code
+                //TODO: bounding boxes
 
                 point_t p = {j, i, 0};
 
-                if (obj->check_edges(p))
+                auto vertices = mesh.vertices;
+                bool edge_check = check_edges(vertices[0].pos, vertices[1].pos,
+                        vertices[2].pos, p);
+
+                /*
+                for (size_t i = 0; i < vertices.size(); ++i)
+                {
+                    edge_check &= edge_function(vertices[i].pos,
+                            vertices[(i + 1) % vertices.size()].pos, p) >= 0;
+                }
+                */
+
+                if (edge_check)
                 {
                     std::vector<double> weights;
-                    auto points = obj->get_points();
-                    double area = edge_function(points[0], points[1], points[2]);
+                    double area = edge_function(vertices[0].pos,
+                            vertices[1].pos, vertices[2].pos);
 
-                    weights.push_back(edge_function(points[1], points[2], p) / area);
-                    weights.push_back(edge_function(points[2], points[0], p) / area);
-                    weights.push_back(edge_function(points[0], points[1], p) / area);
+                    weights.push_back(edge_function(vertices[1].pos,
+                                vertices[2].pos, p) / area);
+                    weights.push_back(edge_function(vertices[2].pos,
+                                vertices[0].pos, p) / area);
+                    weights.push_back(edge_function(vertices[0].pos,
+                                vertices[1].pos, p) / area);
 
-                    for (auto& p : points)
-                        p.z = 1.0 / p.z;
+                    for (auto& v : vertices)
+                        v.pos.z = 1.0 / v.pos.z;
 
                     double z_invert = 0;
-                    for (size_t i = 0; i < points.size(); ++i)
-                        z_invert += points[i].z * weights[i];
+                    for (size_t i = 0; i < vertices.size(); ++i)
+                        z_invert += vertices[i].pos.z * weights[i];
 
                     double z = 1.0 / z_invert;
 
-                    if (z < z_buffer[i * scene_.width + j])
+                    if (z < z_buffer_[i * screen_w_ + j])
                     {
-                        auto& pix = scene_.screen[i * scene_.width + j];
+                        auto& pix = screen_[i * screen_w_ + j];
 
-                        z_buffer[i * scene_.width + j] = z;
+                        z_buffer_[i * screen_w_ + j] = z;
 
-                        pix.r = obj->col.r * 255.0;
-                        pix.g = obj->col.g * 255.0;
-                        pix.b = obj->col.b * 255.0;
+                        pix.r = color.r * 255.0;
+                        pix.g = color.g * 255.0;
+                        pix.b = color.b * 255.0;
                     }
                 }
             }
@@ -91,18 +106,94 @@ void Rasterizer::compute()
 
 void Rasterizer::project_scene()
 {
-    for (auto obj : scene_.objects)
+    /* World to camera */
+    cam_project();
+
+    /* Camera to screen */
+    screen_project();
+
+    /* Screen to NDC */
+    ndc_project(0, screen_w_, 0, screen_h_);
+
+    /* NDC to raster */
+    raster_project();
+}
+
+void Rasterizer::cam_project()
+{
+    for (auto& mesh : meshes_)
     {
-        /* World to camera */
-        obj->cam_project(scene_.eye);
-
-        /* Camera to screen */
-        obj->screen_project(scene_.width, scene_.height);
-
-        /* Screen to NDC */
-        obj->ndc_project(0, scene_.width, 0, scene_.height);
-
-        /* NDC to raster */
-        obj->raster_project(scene_.width, scene_.height);
+        for (auto& v : mesh.vertices)
+            cam_project_point(v.pos);
     }
+}
+
+void Rasterizer::screen_project()
+{
+    for (auto& mesh : meshes_)
+    {
+        for (auto& v : mesh.vertices)
+        {
+            constexpr double ncp = 1;
+
+            v.pos.x = ncp * (screen_w_ / 2.0) * v.pos.x / -v.pos.z + screen_w_ / 2.0;
+            v.pos.y = ncp * (screen_h_ / 2.0) * v.pos.y / -v.pos.z + screen_h_ / 2.0;
+            v.pos.z = -v.pos.z;
+        }
+    }
+}
+
+void Rasterizer::ndc_project(double l, double r, double b, double t)
+{
+    for (auto& mesh : meshes_)
+    {
+        for (auto& v : mesh.vertices)
+        {
+            v.pos.x = 2 * v.pos.x / (r - l) - (r + l) / (r - l);
+            v.pos.y = 2 * v.pos.y / (t - b) - (t + b) / (t - b);
+
+            if (v.pos.x < -1)
+                v.pos.x = -1;
+            if (v.pos.y < -1)
+                v.pos.y = -1;
+
+            if (v.pos.x > 1)
+                v.pos.x = 1;
+            if (v.pos.y > 1)
+                v.pos.y = 1;
+        }
+    }
+}
+
+void Rasterizer::raster_project()
+{
+    for (auto& mesh : meshes_)
+    {
+        for (auto& v : mesh.vertices)
+        {
+            v.pos.x = (v.pos.x + 1) / 2 * screen_w_;
+            v.pos.y = (1 - v.pos.y) / 2 * screen_h_;
+        }
+    }
+}
+
+void Rasterizer::cam_project_point(point_t& p)
+{
+    double rot_mat[] =
+    {
+        cam_.dir_x.x, cam_.dir_x.y, cam_.dir_x.z,
+        cam_.dir_y.x, cam_.dir_y.y, cam_.dir_y.z,
+        cam_.dir_z.x, cam_.dir_z.y, cam_.dir_z.z
+    };
+
+    p -= cam_.pos;
+
+    double trans_mat[] = { p.x, p.y, p.z };
+    double out_mat[3] = { 0 };
+
+    mat_mult<double, 3>(rot_mat, trans_mat, out_mat);
+
+    p.x = out_mat[0];
+    p.y = out_mat[1];
+    p.z = out_mat[2];
 }
