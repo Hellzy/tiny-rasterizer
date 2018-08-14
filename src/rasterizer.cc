@@ -2,6 +2,10 @@
 #include <fstream>
 #include <limits>
 
+#ifdef GPU
+ #include "gpu_operations.hh"
+#endif
+
 #include "input_parser.hh"
 #include "rasterizer.hh"
 #include "utils.hh"
@@ -41,7 +45,11 @@ void Rasterizer::write_scene(const std::string& filename) const
 
 void Rasterizer::compute()
 {
+#ifndef GPU
     project_scene();
+#else
+    gpu_project_scene();
+#endif
 
     for (auto& mesh : meshes_)
     {
@@ -152,15 +160,6 @@ void Rasterizer::ndc_project(double l, double r, double b, double t)
             v.pos.x = 2 * v.pos.x / (r - l) - (r + l) / (r - l);
             v.pos.y = 2 * v.pos.y / (t - b) - (t + b) / (t - b);
 
-            if (v.pos.x < -1)
-                v.pos.x = -1;
-            if (v.pos.y < -1)
-                v.pos.y = -1;
-
-            if (v.pos.x > 1)
-                v.pos.x = 1;
-            if (v.pos.y > 1)
-                v.pos.y = 1;
         }
     }
 }
@@ -197,3 +196,31 @@ void Rasterizer::cam_project_point(point_t& p)
     p.y = out_mat[1];
     p.z = out_mat[2];
 }
+
+#ifdef GPU
+void Rasterizer::gpu_project_scene()
+{
+    /* Accumulate points considering we only deal with triangles */
+    size_t points_nb = meshes_.size() * 3;
+    point_t* points = new point_t[points_nb];
+    size_t i = 0;
+
+    for (const auto& mesh : meshes_)
+    {
+        for (const auto& vertex : mesh.vertices)
+            points[i++] = vertex.pos;
+    }
+
+    /* Call to cuda projection */
+    projection_kernel(points, points_nb, cam_, screen_w_, screen_h_);
+
+    i = 0;
+    for (auto& mesh : meshes_)
+    {
+        for (auto& vertex : mesh.vertices)
+            vertex.pos = points[i++];
+    }
+
+    delete[] points;
+}
+#endif
