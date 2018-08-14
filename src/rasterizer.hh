@@ -20,9 +20,14 @@ public:
     void write_scene(const std::string& filename) const;
 
     /**
-     * Perorms the rasterization of the last loaded scene
+     * Performs the rasterization of the last loaded scene
      */
     void compute();
+
+    /**
+     * Performs the rasterization of the loaded scene using cuda
+     */
+    void gpu_compute();
 
 private:
     void project_scene();
@@ -30,8 +35,9 @@ private:
     void screen_project();
     void ndc_project(double l, double r, double b, double t);
     void raster_project();
-
     void cam_project_point(point_t& p);
+
+    void gpu_project_scene();
 
 private:
     std::vector<mesh_t> meshes_;
