@@ -5,7 +5,9 @@ LDFLAGS=-Linclude/obj-parser/
 LDLIBS=-lm -lobjparser
 
 ifdef DEBUG
-CXXFLAGS += -g
+CXXFLAGS += -O0 -g
+else
+CXXFLAGS += -O3
 endif
 
 PPMDIR=output
