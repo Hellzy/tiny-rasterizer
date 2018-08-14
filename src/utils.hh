@@ -31,6 +31,7 @@ double edge_function(point_t e1, point_t e2, point_t p)
     return ((p.x - e1.x) * (e2.y - e1.y) - (p.y - e1.y) * (e2.x - e1.x));
 }
 
+inline
 bool check_edges(const point_t& p1, const point_t& p2, const point_t& p3,
         const point_t& p)
 {
@@ -41,6 +42,7 @@ bool check_edges(const point_t& p1, const point_t& p2, const point_t& p3,
     return (res1 >= 0 && res2 >= 0 && res3 >= 0) || (res1 < 0 && res2 < 0 && res3 < 0);
 }
 
+inline
 color_t random_color()
 {
         std::random_device rd;
