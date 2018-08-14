@@ -80,7 +80,7 @@ void projection_kernel(point_t* points, size_t point_nb, const cam_t& cam, size_
     cudaMalloc(&points_d, sizeof(point_t) * point_nb);
     cudaMemcpy(points_d, points, sizeof(point_t) * point_nb,
             cudaMemcpyHostToDevice);
-    cuda_project_points<<<1, 1024>>>(points_d, point_nb, cam, screen_w, screen_h);
+    cuda_project_points<<<point_nb / 1024 + 1, 1024>>>(points_d, point_nb, cam, screen_w, screen_h);
     cudaMemcpy(points, points_d, sizeof(point_t) * point_nb,
             cudaMemcpyDeviceToHost);
     cudaFree(points_d);
