@@ -45,11 +45,7 @@ void Rasterizer::write_scene(const std::string& filename) const
 
 void Rasterizer::compute()
 {
-#ifndef GPU
     project_scene();
-#else
-    gpu_project_scene();
-#endif
 
     for (auto& mesh : meshes_)
     {
@@ -198,6 +194,12 @@ void Rasterizer::cam_project_point(point_t& p)
 }
 
 #ifdef GPU
+void Rasterizer::gpu_compute()
+{
+    gpu_project_scene();
+    draw_mesh_kernel(screen_, screen_h_, screen_w_, meshes_, z_buffer_);
+}
+
 void Rasterizer::gpu_project_scene()
 {
     /* Accumulate points considering we only deal with triangles */
