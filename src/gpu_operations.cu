@@ -85,3 +85,70 @@ void projection_kernel(point_t* points, size_t point_nb, const cam_t& cam, size_
             cudaMemcpyDeviceToHost);
     cudaFree(points_d);
 }
+
+__global__ void cuda_draw_mesh(point_t p1, point_t p2, point_t p3,
+        double* z_buffer, color_t* screen, size_t screen_w, size_t screen_h)
+{
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t screen_size = screen_w * screen_h;
+
+    if (idx >= screen_size)
+        return;
+
+    size_t x = idx % screen_w;
+    size_t y = idx / screen_w;
+
+    point_t p = {x, y, 0};
+
+    bool edge_check = check_edges(p1, p2, p3, p);
+
+    if (edge_check)
+    {
+        double area = edge_function(p1, p2, p3);
+        double w0 = edge_function(p2, p3, p) / area;
+        double w1 = edge_function(p3, p1, p) / area;
+        double w2 = edge_function(p1, p2, p) / area;
+
+        p1.z = 1.0 / p1.z;
+        p2.z = 1.0 / p2.z;
+        p3.z = 1.0 / p3.z;
+
+        double z_invert = p1.z * w0 + p2.z * w1 + p3.z * w2;
+        double z = 1.0 / z_invert;
+
+        if (z < z_buffer[idx])
+        {
+            z_buffer[idx] = z;
+
+            color_t color = { 1.0, 0.0, 0.0 };
+            screen[idx] = {color.r * 255.0, color.g * 255.0, color.b * 255.0};
+        }
+    }
+}
+
+void draw_mesh_kernel(std::vector<color_t>& screen, size_t screen_h, size_t screen_w,
+        const std::vector<mesh_t>& meshes, const std::vector<double>& z_buffer)
+{
+    double* z_buffer_d = nullptr;
+    color_t* screen_d = nullptr;
+
+    cudaMalloc(&z_buffer_d, sizeof(double) * z_buffer.size());
+    cudaMemcpy(z_buffer_d, z_buffer.data(), sizeof(double) * z_buffer.size(),
+            cudaMemcpyHostToDevice);
+    cudaMalloc(&screen_d, sizeof(color_t) * screen.size());
+    cudaMemset(screen_d, 0, sizeof(color_t) * screen.size());
+
+    for (const auto& mesh : meshes)
+    {
+        auto v1 = mesh.vertices[0];
+        auto v2 = mesh.vertices[1];
+        auto v3 = mesh.vertices[2];
+
+        cuda_draw_mesh<<<screen.size() / 1024 + 1, 1024>>>(v1.pos, v2.pos, v3.pos,
+                z_buffer_d, screen_d, screen_h, screen_w);
+    }
+
+    cudaMemcpy(screen.data(), screen_d, sizeof(color_t) * screen.size(), cudaMemcpyDeviceToHost);
+    cudaFree(screen_d);
+    cudaFree(z_buffer_d);
+}
