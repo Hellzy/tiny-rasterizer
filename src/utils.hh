@@ -26,12 +26,18 @@ void mat_mult(T m1[9], T m2[dim2], T out[dim2])
  * e2:  second edge point
  */
 inline
+#ifdef GPU
+__device__
+#endif
 double edge_function(point_t e1, point_t e2, point_t p)
 {
     return ((p.x - e1.x) * (e2.y - e1.y) - (p.y - e1.y) * (e2.x - e1.x));
 }
 
 inline
+#ifdef GPU
+__device__
+#endif
 bool check_edges(const point_t& p1, const point_t& p2, const point_t& p3,
         const point_t& p)
 {
