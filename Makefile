@@ -39,4 +39,4 @@ clean:
 clean-all: clean
 	make clean -C include/
 
-.PHONY: all libs clean clean-all cuda
+.PHONY: all libs clean clean-all
