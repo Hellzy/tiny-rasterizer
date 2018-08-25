@@ -12,7 +12,7 @@
  * - screen_w: width of the screen
  * - screen_h: height of the screen
  */
-void projection_kernel(point_t* points, size_t point_nb, const cam_t& cam, size_t screen_w, size_t screen_h);
+void projection_kernel(mesh_t* meshes, size_t mesh_nb, const cam_t& cam, size_t screen_w, size_t screen_h);
 
 /*
  * Draws the scene on the screen

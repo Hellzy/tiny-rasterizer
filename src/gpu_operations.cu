@@ -1,3 +1,10 @@
+#ifdef BENCH
+#include <iostream>
+#include <chrono>
+#endif
+
+#include <cmath>
+
 #include "gpu_operations.hh"
 
 template <typename T, unsigned dim2>
@@ -40,63 +47,84 @@ __device__ void cam_project_point(const cam_t& cam, point_t& p)
     p.z = out_mat[2];
 }
 
-__global__ void cuda_project_points(point_t* points, size_t point_nb, cam_t cam, size_t screen_w, size_t screen_h)
+__global__ void cuda_project_points(mesh_t* meshes, size_t mesh_nb, cam_t cam, size_t screen_w, size_t screen_h)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (idx < point_nb)
+    if (idx < mesh_nb)
     {
-        constexpr double ncp = 1;
-        point_t p = points[idx];
+        auto mesh = meshes[idx];
+        point_t points[3] =  { mesh.v1.pos, mesh.v2.pos, mesh.v3.pos };
 
-        cam_project_point(cam, p);
+        for (int i = 0; i < 3; ++i)
+        {
+            auto& p = points[i];
+            constexpr double ncp = 1;
 
-        /* Screen projection */
-        p.x = ncp * (screen_w / 2.0) * p.x / -p.z + screen_w / 2.0;
-        p.y = ncp * (screen_h / 2.0) * p.y / -p.z + screen_h / 2.0;
-        p.z = -p.z;
+            cam_project_point(cam, p);
 
-        /* NDC projection */
-        double l = 0;
-        double r = screen_w;
-        double b = 0;
-        double t = screen_h;
+            /* Screen projection */
+            p.x = ncp * (screen_w / 2.0) * p.x / -p.z + screen_w / 2.0;
+            p.y = ncp * (screen_h / 2.0) * p.y / -p.z + screen_h / 2.0;
+            p.z = -p.z;
 
-        p.x = 2 * p.x / (r - l) - (r + l) / (r - l);
-        p.y = 2 * p.y / (t - b) - (t + b) / (t - b);
+            /* NDC projection */
+            double l = 0;
+            double r = screen_w;
+            double b = 0;
+            double t = screen_h;
 
-        /* Raster projection */
-        p.x = (p.x + 1) / 2 * screen_w;
-        p.y = (1 - p.y) / 2 * screen_h;
+            p.x = 2 * p.x / (r - l) - (r + l) / (r - l);
+            p.y = 2 * p.y / (t - b) - (t + b) / (t - b);
 
-        points[idx] = p;
+            /* Raster projection */
+            p.x = (p.x + 1) / 2 * screen_w;
+            p.y = (1 - p.y) / 2 * screen_h;
+        }
+
+        mesh.v1.pos = points[0];
+        mesh.v2.pos = points[1];
+        mesh.v3.pos = points[2];
+
+        meshes[idx] = mesh;
     }
 }
 
-void projection_kernel(point_t* points, size_t point_nb, const cam_t& cam, size_t screen_w, size_t screen_h)
+void projection_kernel(mesh_t* meshes, size_t mesh_nb, const cam_t& cam, size_t screen_w, size_t screen_h)
 {
-    point_t* points_d;
+    mesh_t* meshes_d;
 
-    cudaMalloc(&points_d, sizeof(point_t) * point_nb);
-    cudaMemcpy(points_d, points, sizeof(point_t) * point_nb,
+    cudaMalloc(&meshes_d, sizeof(mesh_t) * mesh_nb);
+    cudaMemcpy(meshes_d, meshes, sizeof(mesh_t) * mesh_nb,
             cudaMemcpyHostToDevice);
-    cuda_project_points<<<point_nb / 1024 + 1, 1024>>>(points_d, point_nb, cam, screen_w, screen_h);
-    cudaMemcpy(points, points_d, sizeof(point_t) * point_nb,
+
+#ifdef BENCH
+    auto gpu_start = std::chrono::system_clock::now();
+#endif
+
+    cuda_project_points<<<mesh_nb / 1024 + 1, 1024>>>(meshes_d, mesh_nb, cam, screen_w, screen_h);
+
+#ifdef BENCH
+    auto gpu_end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_gpu = gpu_end - gpu_start;
+    std::cout << "Elapsed projection_kernel: " << elapsed_gpu.count() << "s\n";
+#endif
+
+    cudaMemcpy(meshes, meshes_d, sizeof(mesh_t) * mesh_nb,
             cudaMemcpyDeviceToHost);
-    cudaFree(points_d);
+    cudaFree(meshes_d);
 }
 
 __global__ void cuda_draw_mesh(point_t p1, point_t p2, point_t p3,
         double* z_buffer, color_t* screen, size_t screen_w, size_t screen_h)
 {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t x = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t y = blockIdx.y * blockDim.y + threadIdx.y;
+    size_t idx = y * screen_w + x;
     size_t screen_size = screen_w * screen_h;
 
     if (idx >= screen_size)
         return;
-
-    size_t x = idx % screen_w;
-    size_t y = idx / screen_w;
 
     point_t p = {x, y, 0};
 
@@ -138,15 +166,29 @@ void draw_mesh_kernel(std::vector<color_t>& screen, size_t screen_h, size_t scre
     cudaMalloc(&screen_d, sizeof(color_t) * screen.size());
     cudaMemset(screen_d, 0, sizeof(color_t) * screen.size());
 
+#ifdef BENCH
+    auto gpu_start = std::chrono::system_clock::now();
+#endif
+
     for (const auto& mesh : meshes)
     {
-        auto v1 = mesh.vertices[0];
-        auto v2 = mesh.vertices[1];
-        auto v3 = mesh.vertices[2];
+        auto v1 = mesh.v1;
+        auto v2 = mesh.v2;
+        auto v3 = mesh.v3;
 
-        cuda_draw_mesh<<<screen.size() / 1024 + 1, 1024>>>(v1.pos, v2.pos, v3.pos,
+        auto blockDim = dim3(32, 32);
+        auto gridDim = dim3(std::ceil(screen_w / blockDim.x),
+                std::ceil(screen_h / blockDim.y));
+
+        cuda_draw_mesh<<<gridDim, blockDim>>>(v1.pos, v2.pos, v3.pos,
                 z_buffer_d, screen_d, screen_h, screen_w);
     }
+
+#ifdef BENCH
+    auto gpu_end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_gpu = gpu_end - gpu_start;
+    std::cout << "Elapsed draw_mesh_kernel: " << elapsed_gpu.count() << "s\n";
+#endif
 
     cudaMemcpy(screen.data(), screen_d, sizeof(color_t) * screen.size(), cudaMemcpyDeviceToHost);
     cudaFree(screen_d);
