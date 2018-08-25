@@ -15,11 +15,13 @@ BIN=rasterizer
 OBJS=$(addprefix src/,main.o rasterizer.o input_parser.o)
 CUOBJS=$(addprefix src/, gpu_operations.o)
 
-ifdef GPU
 	OBJS += $(CUOBJS)
-	CPPFLAGS += -I/opt/cuda/include -DGPU
+	CPPFLAGS += -I/opt/cuda/include
 	LDFLAGS += -L/opt/cuda/lib64
 	LDLIBS += -lcudart
+
+ifdef BENCH
+CPPFLAGS += -DBENCH
 endif
 
 all: libs $(BIN)
