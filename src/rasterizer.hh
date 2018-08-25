@@ -20,31 +20,16 @@ public:
     void write_scene(const std::string& filename) const;
 
     /**
-     * Performs the rasterization of the last loaded scene
-     */
-    void compute();
-
-    /**
      * Performs the rasterization of the loaded scene using cuda
      */
     void gpu_compute();
-
-private:
-    void project_scene();
-    void cam_project();
-    void screen_project();
-    void ndc_project(double l, double r, double b, double t);
-    void raster_project();
-    void cam_project_point(point_t& p);
-
-    void gpu_project_scene();
 
 private:
     std::vector<mesh_t> meshes_;
     std::vector<double> z_buffer_;
     std::vector<color_t> screen_;
 
-    cam_t cam_ = { {-0.3, 0.2, -2.5}, {1.2, 0, 0}, {0, 1.1, 0}, {0, 0, -1} };
+    cam_t cam_ = { {-0.3, 0.2, -10.5}, {1.2, 0, 0}, {0, 1.1, 0}, {0, 0, -1} };
     size_t screen_w_ = 800;
     size_t screen_h_ = 800;
 };
