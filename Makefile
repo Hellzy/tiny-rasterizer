@@ -13,7 +13,7 @@ endif
 PPMDIR=output
 BIN=rasterizer
 OBJS=$(addprefix src/,main.o rasterizer.o input_parser.o)
-CUOBJS=$(addprefix src/, gpu_operations.o)
+CUOBJS=$(addprefix src/, gpu_operations.o device_bitset.o)
 
 	OBJS += $(CUOBJS)
 	CPPFLAGS += -I/opt/cuda/include
@@ -27,10 +27,10 @@ endif
 all: libs $(BIN)
 
 $(BIN): $(OBJS)
-	$(LINK.cc) -o $@ $^ $(LDLIBS)
+	nvcc $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.cu
-	nvcc $(CPPFLAGS) -std=c++14 -c $< -o $@
+	nvcc $(CPPFLAGS) -g -std=c++14 -dc $< -o $@
 
 libs:
 	make -C include/
