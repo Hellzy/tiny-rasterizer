@@ -1,5 +1,8 @@
 #pragma once
 
+#include <thrust/host_vector.h>
+#include <thrust/system/cuda/experimental/pinned_allocator.h>
+
 #include "obj-parser/src/types.hh"
 
 using vector_t = point_t;
@@ -30,3 +33,9 @@ struct BoundingBox
 };
 
 using bbox_t = BoundingBox;
+
+template <typename T>
+using pinned_alloc_t = thrust::system::cuda::experimental::pinned_allocator<T>;
+
+template <typename T>
+using host_vec_t = thrust::host_vector<T, pinned_alloc_t<T>>;
