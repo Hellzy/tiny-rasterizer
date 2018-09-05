@@ -20,3 +20,13 @@ struct Cam
 };
 
 using cam_t = Cam;
+
+struct BoundingBox
+{
+    point_t top_l;
+    point_t top_r;
+    point_t bot_l;
+    point_t bot_r;
+};
+
+using bbox_t = BoundingBox;
