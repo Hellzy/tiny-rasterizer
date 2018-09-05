@@ -25,9 +25,8 @@ public:
     void gpu_compute();
 
 private:
-    std::vector<mesh_t> meshes_;
-    std::vector<double> z_buffer_;
-    std::vector<color_t> screen_;
+    thrust::host_vector<mesh_t, pinned_alloc_t<mesh_t>> meshes_;
+    thrust::host_vector<color_t, pinned_alloc_t<color_t>> screen_;
 
     cam_t cam_ = { {-0.3, 0.2, -10.5}, {1.2, 0, 0}, {0, 1.1, 0}, {0, 0, -1} };
     size_t screen_w_ = 800;

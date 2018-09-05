@@ -255,7 +255,7 @@ __global__ void cuda_draw_mesh(mesh_t* meshes, size_t mesh_nb, color_t* screen, 
     }
 }
 
-void draw_mesh_kernel(std::vector<color_t>& screen, size_t screen_w, size_t screen_h,
+void draw_mesh_kernel(host_vec_t<color_t>& screen, size_t screen_w, size_t screen_h,
         mesh_t* meshes_d, size_t mesh_nb, bitset_t* bitsets)
 {
     color_t* screen_d = nullptr;

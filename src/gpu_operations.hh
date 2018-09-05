@@ -31,7 +31,7 @@ bitset_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb, size_t screen_
  * - meshes: meshes of the scene
  * - z_buffer: depth buffer
  */
-void draw_mesh_kernel(std::vector<color_t>& screen, size_t screen_w, size_t screen_h,
+void draw_mesh_kernel(host_vec_t<color_t>& screen, size_t screen_w, size_t screen_h,
         mesh_t* meshes_d, size_t mesh_nb, bitset_t* bitsets);
 
 

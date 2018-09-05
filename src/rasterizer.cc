@@ -13,8 +13,6 @@ void Rasterizer::load_scene(const std::string& filename)
 {
     InputParser parser(filename);
     meshes_ = parser.meshes_get();
-    z_buffer_ = std::vector<double>(screen_w_ * screen_h_,
-            std::numeric_limits<double>::max());
     screen_ = std::vector<color_t>(screen_w_ * screen_h_);
 }
 
