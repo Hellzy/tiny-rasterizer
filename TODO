@@ -1,0 +1,6 @@
+- .obj parser
+- real time viewer + cam controller (real time = GPU)
+- handle more than 3 vertices meshes (for now, some rasterizer parts such
+  as the edge function are hardcoded for 3 vertices)
+- use thrust host_vector and pinned_allocator to accelerate data tranfers
+- use cuda streams
