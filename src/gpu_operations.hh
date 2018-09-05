@@ -13,13 +13,13 @@
  * - screen_w: width of the screen
  * - screen_h: height of the screen
  */
-void projection_kernel(mesh_t* meshes, size_t mesh_nb, const cam_t& cam,
+void projection_kernel(mesh_t* meshes_d, size_t mesh_nb, const cam_t& cam,
         size_t screen_w, size_t screen_h);
 
 /*
  * This kernel dispatches the meshes to every tile of the screen
  */
-bitset_t* tiles_dispatch_kernel(mesh_t* meshes, size_t mesh_nb, size_t screen_w,
+bitset_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb, size_t screen_w,
         size_t screen_h);
 
 /*
@@ -32,7 +32,7 @@ bitset_t* tiles_dispatch_kernel(mesh_t* meshes, size_t mesh_nb, size_t screen_w,
  * - z_buffer: depth buffer
  */
 void draw_mesh_kernel(std::vector<color_t>& screen, size_t screen_w, size_t screen_h,
-        const std::vector<mesh_t>& meshes, bitset_t* bitsets);
+        mesh_t* meshes_d, size_t mesh_nb, bitset_t* bitsets);
 
 
 __host__ dim3 compute_tiles(size_t screen_w, size_t screen_h);

@@ -96,23 +96,13 @@ __global__ void cuda_project_points(mesh_t* meshes, size_t mesh_nb, cam_t cam, s
     }
 }
 
-void projection_kernel(mesh_t* meshes, size_t mesh_nb, const cam_t& cam, size_t screen_w, size_t screen_h)
+void projection_kernel(mesh_t* meshes_d, size_t mesh_nb, const cam_t& cam, size_t screen_w, size_t screen_h)
 {
-    mesh_t* meshes_d;
-
 #ifdef BENCH
     BEGIN_BENCH();
 #endif
 
-    cudaMalloc(&meshes_d, sizeof(mesh_t) * mesh_nb);
-    cudaMemcpy(meshes_d, meshes, sizeof(mesh_t) * mesh_nb,
-            cudaMemcpyHostToDevice);
-
     cuda_project_points<<<mesh_nb / 1024 + 1, 1024>>>(meshes_d, mesh_nb, cam, screen_w, screen_h);
-
-    cudaMemcpy(meshes, meshes_d, sizeof(mesh_t) * mesh_nb,
-            cudaMemcpyDeviceToHost);
-    cudaFree(meshes_d);
 
 #ifdef BENCH
     END_BENCH("projection kernel");
@@ -174,27 +164,20 @@ __global__ void cuda_tiles_dispatch(size_t mesh_nb, bbox_t* bboxes,
     }
 }
 
-bitset_t* tiles_dispatch_kernel(mesh_t* meshes, size_t mesh_nb,
+bitset_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb,
         size_t screen_w, size_t screen_h)
 {
     size_t tpb = 1024;
-    mesh_t* meshes_d;
     bbox_t* bboxes_d;
 
 #ifdef BENCH
     BEGIN_BENCH()
 #endif
 
-    cudaMalloc(&meshes_d, sizeof(mesh_t) * mesh_nb);
-    cudaMemcpy(meshes_d, meshes, sizeof(mesh_t) * mesh_nb,
-            cudaMemcpyHostToDevice);
     cudaMalloc(&bboxes_d, sizeof(bbox_t) * mesh_nb);
 
     cuda_bounding_boxes<<<mesh_nb / tpb + 1, tpb>>>(meshes_d, mesh_nb,
             bboxes_d);
-
-    bbox_t bboxes[mesh_nb];
-    cudaMemcpy(bboxes, bboxes_d, sizeof(bbox_t) * mesh_nb, cudaMemcpyDeviceToHost);
 
     auto tiles_dim = compute_tiles(screen_w, screen_h);
     auto tiles_size = tiles_dim.x * tiles_dim.y;
@@ -209,7 +192,6 @@ bitset_t* tiles_dispatch_kernel(mesh_t* meshes, size_t mesh_nb,
     cuda_tiles_dispatch<<<mesh_nb / tpb + 1, tpb>>>(mesh_nb, bboxes_d,
             tiles_dim, bitsets_d);
 
-    cudaFree(meshes_d);
     cudaFree(bboxes_d);
 
 #ifdef BENCH
@@ -274,10 +256,9 @@ __global__ void cuda_draw_mesh(mesh_t* meshes, size_t mesh_nb, color_t* screen, 
 }
 
 void draw_mesh_kernel(std::vector<color_t>& screen, size_t screen_w, size_t screen_h,
-        const std::vector<mesh_t>& meshes, bitset_t* bitsets)
+        mesh_t* meshes_d, size_t mesh_nb, bitset_t* bitsets)
 {
     color_t* screen_d = nullptr;
-    mesh_t* meshes_d = nullptr;
 
 #ifdef BENCH
     BEGIN_BENCH();
@@ -286,17 +267,13 @@ void draw_mesh_kernel(std::vector<color_t>& screen, size_t screen_w, size_t scre
     cudaMalloc(&screen_d, sizeof(color_t) * screen.size());
     cudaMemset(screen_d, 0, sizeof(color_t) * screen.size());
 
-    cudaMalloc(&meshes_d, sizeof(mesh_t) * meshes.size());
-    cudaMemcpy(meshes_d, meshes.data(), sizeof(mesh_t) * meshes.size(), cudaMemcpyHostToDevice);
-
     auto blockDim = dim3(32, 32);
     auto gridDim = dim3(std::ceil(screen_w / blockDim.x), std::ceil(screen_h / blockDim.y));
 
-    cuda_draw_mesh<<<gridDim, blockDim>>>(meshes_d, meshes.size(), screen_d, screen_w, screen_h, bitsets);
+    cuda_draw_mesh<<<gridDim, blockDim>>>(meshes_d, mesh_nb, screen_d, screen_w, screen_h, bitsets);
 
     cudaMemcpy(screen.data(), screen_d, sizeof(color_t) * screen.size(), cudaMemcpyDeviceToHost);
     cudaFree(screen_d);
-    cudaFree(meshes_d);
 
 #ifdef BENCH
     END_BENCH("draw mesh kernel");

@@ -8,6 +8,7 @@
 #include "rasterizer.hh"
 #include "utils.hh"
 
+
 void Rasterizer::load_scene(const std::string& filename)
 {
     InputParser parser(filename);
@@ -42,12 +43,20 @@ void Rasterizer::write_scene(const std::string& filename) const
 }
 void Rasterizer::gpu_compute()
 {
-    projection_kernel(meshes_.data(), meshes_.size(), cam_, screen_w_,
+    mesh_t* meshes_d;
+
+    cudaMalloc(&meshes_d, sizeof(mesh_t) * meshes_.size());
+    cudaMemcpy(meshes_d, meshes_.data(), sizeof(mesh_t) * meshes_.size(),
+            cudaMemcpyHostToDevice);
+
+    projection_kernel(meshes_d, meshes_.size(), cam_, screen_w_,
             screen_h_);
-    auto bitsets_d = tiles_dispatch_kernel(meshes_.data(),  meshes_.size(),
+    auto bitsets_d = tiles_dispatch_kernel(meshes_d,  meshes_.size(),
             screen_w_, screen_h_);
 
-    draw_mesh_kernel(screen_, screen_w_, screen_h_, meshes_, bitsets_d);
+    draw_mesh_kernel(screen_, screen_w_, screen_h_, meshes_d, meshes_.size(), bitsets_d);
+
+    cudaFree(meshes_d);
     cudaFree(bitsets_d);
     bitset_t::release_memory();
 }
