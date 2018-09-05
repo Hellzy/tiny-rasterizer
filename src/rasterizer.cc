@@ -1,6 +1,7 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <iostream>
 
 #include "gpu_operations.hh"
 #include "input_parser.hh"
@@ -41,6 +42,12 @@ void Rasterizer::write_scene(const std::string& filename) const
 }
 void Rasterizer::gpu_compute()
 {
-    projection_kernel(meshes_.data(), meshes_.size(), cam_, screen_w_, screen_h_);
-    draw_mesh_kernel(screen_, screen_h_, screen_w_, meshes_, z_buffer_);
+    projection_kernel(meshes_.data(), meshes_.size(), cam_, screen_w_,
+            screen_h_);
+    auto bitsets_d = tiles_dispatch_kernel(meshes_.data(),  meshes_.size(),
+            screen_w_, screen_h_);
+
+    draw_mesh_kernel(screen_, screen_w_, screen_h_, meshes_, bitsets_d);
+    cudaFree(bitsets_d);
+    bitset_t::release_memory();
 }
