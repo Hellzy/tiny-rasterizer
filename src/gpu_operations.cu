@@ -159,7 +159,10 @@ __global__ void cuda_tiles_dispatch(size_t mesh_nb, bbox_t* bboxes,
         for (size_t i = 0; i <= v_dst; ++i)
         {
             for (size_t j = 0; j <= h_dst; ++j)
-                bitsets[(start_h + i) * tiles_dim.x + start_w + j].set(idx);
+            {
+                if ((start_h + i) * tiles_dim.x + start_w + j < tiles_dim.x * tiles_dim.y)
+                    bitsets[(start_h + i) * tiles_dim.x + start_w + j].set(idx);
+            }
         }
     }
 }

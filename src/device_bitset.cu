@@ -12,8 +12,8 @@ DeviceBitset::DeviceBitset()
 
 void DeviceBitset::allocate(size_t nb, size_t size)
 {
-    cudaMalloc(&mem_, nb * size);
-    cudaMemset(mem_, 0, nb * size);
+    cudaMalloc(&mem_, sizeof(bool) * nb * size);
+    cudaMemset(mem_, 0, sizeof(bool) * nb * size);
     chunk_size_ = size;
 }
 
