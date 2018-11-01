@@ -143,31 +143,36 @@ __global__ void cuda_bounding_boxes(mesh_t* meshes, size_t mesh_nb, bbox_t* bbox
 }
 
 __global__ void cuda_tiles_dispatch(size_t mesh_nb, bbox_t* bboxes,
-        dim3 tiles_dim, bitset_t* bitsets)
+        dim3 tiles_dim, device_vec_t* vecs)
 {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t idx = blockIdx.x;
 
     if (idx < mesh_nb)
     {
+        /* Compute distance in terms of tiles (i.e 1 tile, 2 tiles, 3 tiles...) */
         bbox_t bbox = bboxes[idx];
         size_t h_dst = ceil(bbox.top_r.x / 32) - bbox.top_l.x / 32;
         size_t v_dst = ceil(bbox.bot_l.y / 32) - bbox.top_l.y / 32;
 
+        /* Look for top left bounding box */
         size_t start_w = bbox.top_l.x / 32;
         size_t start_h = bbox.top_l.y / 32;
 
+        /* For each tile in the bounding box, notify the bitset that the
+           current mesh is inside. */
         for (size_t i = 0; i <= v_dst; ++i)
         {
             for (size_t j = 0; j <= h_dst; ++j)
             {
-                if ((start_h + i) * tiles_dim.x + start_w + j < tiles_dim.x * tiles_dim.y)
-                    bitsets[(start_h + i) * tiles_dim.x + start_w + j].set(idx);
+                size_t off = (start_h + i) * tiles_dim.x + start_w + j;
+                if (off < tiles_dim.x * tiles_dim.y)
+                    vecs[off].push(idx);
             }
         }
     }
 }
 
-bitset_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb,
+device_vec_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb,
         size_t screen_w, size_t screen_h)
 {
     size_t tpb = 1024;
@@ -185,15 +190,14 @@ bitset_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb,
     auto tiles_dim = compute_tiles(screen_w, screen_h);
     auto tiles_size = tiles_dim.x * tiles_dim.y;
 
-    bitset_t::allocate(tiles_size, mesh_nb);
-    bitset_t bitsets[tiles_size];
-    bitset_t* bitsets_d;
+    device_vec_t* vecs = new device_vec_t[tiles_size];
+    device_vec_t* vecs_d;
 
-    cudaMalloc(&bitsets_d, sizeof(bitset_t) * tiles_size);
-    cudaMemcpy(bitsets_d, bitsets, sizeof(bitset_t) * tiles_size, cudaMemcpyHostToDevice);
+    cudaMalloc(&vecs_d, sizeof(device_vec_t) * tiles_size);
+    cudaMemcpy(vecs_d, vecs, sizeof(device_vec_t) * tiles_size, cudaMemcpyHostToDevice);
 
-    cuda_tiles_dispatch<<<mesh_nb / tpb + 1, tpb>>>(mesh_nb, bboxes_d,
-            tiles_dim, bitsets_d);
+    cuda_tiles_dispatch<<<mesh_nb, 1>>>(mesh_nb, bboxes_d,
+            tiles_dim, vecs_d);
 
     cudaFree(bboxes_d);
 
@@ -201,11 +205,11 @@ bitset_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb,
     END_BENCH("tile dispatch kernel");
 #endif
 
-    return bitsets_d;
+    return vecs_d;
 }
 
 __global__ void cuda_draw_mesh(mesh_t* meshes, size_t mesh_nb, color_t* screen, size_t screen_w,
-        size_t screen_h, bitset_t* bitsets)
+        size_t screen_h, device_vec_t* vecs)
 {
     size_t x = blockIdx.x * blockDim.x + threadIdx.x;
     size_t y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -218,48 +222,47 @@ __global__ void cuda_draw_mesh(mesh_t* meshes, size_t mesh_nb, color_t* screen, 
 
     point_t p = {x, y, 0};
     double best_z = -1u; //set to max int
-    auto bitset = bitsets[block_idx];
 
-    for (size_t i = 0; i < mesh_nb; ++i)
+    auto* vec = vecs + block_idx;
+
+    for (size_t i = 0; i < vec->size(); ++i)
     {
-        if (bitset.test(i))
+        mesh_t mesh = meshes[(*vec)[i]];
+        point_t p1 = mesh.v1.pos;
+        point_t p2 = mesh.v2.pos;
+        point_t p3 = mesh.v3.pos;
+
+        if (check_edges(p1, p2, p3, p))
         {
-            mesh_t mesh = meshes[i];
-            point_t p1 = mesh.v1.pos;
-            point_t p2 = mesh.v2.pos;
-            point_t p3 = mesh.v3.pos;
+            volatile double area = edge_function(p1, p2, p3);
+            volatile double w0 = edge_function(p2, p3, p) / area;
+            volatile double w1 = edge_function(p3, p1, p) / area;
+            volatile double w2 = edge_function(p1, p2, p) / area;
 
-            bool edge_check = check_edges(p1, p2, p3, p);
+            p1.z = 1.0 / p1.z;
+            p2.z = 1.0 / p2.z;
+            p3.z = 1.0 / p3.z;
 
-            if (edge_check)
+            volatile double z_invert = p1.z * w0 + p2.z * w1 + p3.z * w2;
+            volatile double z = 1.0 / z_invert;
+
+            if (z < best_z)
             {
-                double area = edge_function(p1, p2, p3);
-                double w0 = edge_function(p2, p3, p) / area;
-                double w1 = edge_function(p3, p1, p) / area;
-                double w2 = edge_function(p1, p2, p) / area;
+                best_z = z;
 
-                p1.z = 1.0 / p1.z;
-                p2.z = 1.0 / p2.z;
-                p3.z = 1.0 / p3.z;
-
-                double z_invert = p1.z * w0 + p2.z * w1 + p3.z * w2;
-                double z = 1.0 / z_invert;
-
-                if (z < best_z)
-                {
-                    best_z = z;
-
-                    double ratio = (double)(i + 1) / mesh_nb;
-                    color_t color = { ratio, ratio, ratio };
-                    screen[idx] = {color.r * 255.0, color.g * 255.0, color.b * 255.0};
-                }
+#if 0
+                //Deactivated, gotta find a good way to compute colors
+                volatile double ratio = (double)(i + 1) / vec->size();
+                screen[idx] = {ratio * 255.0, ratio * 255.0, ratio * 255.0};
+#endif
+                screen[idx] = {255.0, 255.0, 255.0};
             }
         }
     }
 }
 
 void draw_mesh_kernel(host_vec_t<color_t>& screen, size_t screen_w, size_t screen_h,
-        mesh_t* meshes_d, size_t mesh_nb, bitset_t* bitsets)
+        mesh_t* meshes_d, size_t mesh_nb, device_vec_t* vecs)
 {
     color_t* screen_d = nullptr;
 
@@ -273,7 +276,7 @@ void draw_mesh_kernel(host_vec_t<color_t>& screen, size_t screen_w, size_t scree
     auto blockDim = dim3(32, 32);
     auto gridDim = dim3(std::ceil(screen_w / blockDim.x), std::ceil(screen_h / blockDim.y));
 
-    cuda_draw_mesh<<<gridDim, blockDim>>>(meshes_d, mesh_nb, screen_d, screen_w, screen_h, bitsets);
+    cuda_draw_mesh<<<gridDim, blockDim>>>(meshes_d, mesh_nb, screen_d, screen_w, screen_h, vecs);
 
     cudaMemcpy(screen.data(), screen_d, sizeof(color_t) * screen.size(), cudaMemcpyDeviceToHost);
     cudaFree(screen_d);

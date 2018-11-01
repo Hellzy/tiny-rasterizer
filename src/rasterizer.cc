@@ -52,12 +52,11 @@ void Rasterizer::gpu_compute()
 
     projection_kernel(meshes_d, meshes_.size(), cam_, screen_w_,
             screen_h_);
-    auto bitsets_d = tiles_dispatch_kernel(meshes_d,  meshes_.size(),
+    auto vecs_d = tiles_dispatch_kernel(meshes_d,  meshes_.size(),
             screen_w_, screen_h_);
 
-    draw_mesh_kernel(screen_, screen_w_, screen_h_, meshes_d, meshes_.size(), bitsets_d);
+    draw_mesh_kernel(screen_, screen_w_, screen_h_, meshes_d, meshes_.size(), vecs_d);
 
     cudaFree(meshes_d);
-    cudaFree(bitsets_d);
-    bitset_t::release_memory();
+    cudaFree(vecs_d);
 }

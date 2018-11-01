@@ -3,6 +3,7 @@
 
 #include "device_bitset.hh"
 #include "utils.hh"
+#include "device_vector.hh"
 
 /*
  * Projects every point of the scene in raster space
@@ -19,7 +20,7 @@ void projection_kernel(mesh_t* meshes_d, size_t mesh_nb, const cam_t& cam,
 /*
  * This kernel dispatches the meshes to every tile of the screen
  */
-bitset_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb, size_t screen_w,
+device_vec_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb, size_t screen_w,
         size_t screen_h);
 
 /*
@@ -32,7 +33,7 @@ bitset_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb, size_t screen_
  * - z_buffer: depth buffer
  */
 void draw_mesh_kernel(host_vec_t<color_t>& screen, size_t screen_w, size_t screen_h,
-        mesh_t* meshes_d, size_t mesh_nb, bitset_t* bitsets);
+        mesh_t* meshes_d, size_t mesh_nb, device_vec_t* vecs);
 
 
 __host__ dim3 compute_tiles(size_t screen_w, size_t screen_h);
