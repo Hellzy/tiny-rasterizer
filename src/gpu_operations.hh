@@ -1,9 +1,8 @@
 #pragma once
 #include <cuda_runtime.h>
 
-#include "device_bitset.hh"
-#include "utils.hh"
 #include "device_vector.hh"
+#include "utils.hh"
 
 /*
  * Projects every point of the scene in raster space
