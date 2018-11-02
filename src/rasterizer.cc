@@ -13,6 +13,9 @@ void Rasterizer::load_scene(const std::string& filename)
 {
     InputParser parser(filename);
     meshes_ = parser.meshes_get();
+    cam_ = parser.cam_get();
+    screen_w_ = parser.screen_width_get();
+    screen_h_ = parser.screen_height_get();
     screen_ = std::vector<color_t>(screen_w_ * screen_h_);
 }
 
