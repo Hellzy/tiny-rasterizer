@@ -28,7 +28,7 @@ private:
     thrust::host_vector<mesh_t, pinned_alloc_t<mesh_t>> meshes_;
     thrust::host_vector<color_t, pinned_alloc_t<color_t>> screen_;
 
-    cam_t cam_ = { {-0.3, 0.2, -10.5}, {1.2, 0, 0}, {0, 1.1, 0}, {0, 0, -1} };
-    size_t screen_w_ = 800;
-    size_t screen_h_ = 800;
+    cam_t cam_;
+    size_t screen_w_;
+    size_t screen_h_;
 };
