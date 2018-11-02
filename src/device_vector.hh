@@ -3,15 +3,23 @@
 
 #include "device_lock.hh"
 
+/**
+ * A simple vector class that allows to simulate c++ vector's behaviour on
+ * GPU side, using locks to allow usage between blocks.
+ */
+
 class DeviceVector
 {
 public:
 
     /**
-     * Empty handlers used to construct the object on CPU side, then copy
-     * it to the gpu.
+     * Simple constructor to allocate the device memory used by the class
      */
     DeviceVector();
+
+    /**
+     * Simple destructor to release the device memory used by the class
+     */
     ~DeviceVector();
 
     __device__ void push(size_t val);
@@ -23,6 +31,9 @@ public:
     __device__ size_t size() const { return cur_size_; }
 
 private:
+    /**
+     * Simple getter to know how much data we stored
+     */
     __device__ void expand();
 
 private:

@@ -15,6 +15,17 @@ double edge_function(point_t e1, point_t e2, point_t p)
     return ((p.x - e1.x) * (e2.y - e1.y) - (p.y - e1.y) * (e2.x - e1.x));
 }
 
+/**
+ * Detectes wether the point p is contained within the edges formed by the
+ * points p1, p2 and p3
+ *
+ * - p1,p2,p3: points of a triangle
+ * - p: point to check against the triangle
+ *
+ *   RETURN VALUE: wether the point is within the triangle formed by p1, p2 and
+ *   p3 or not.
+ */
+
 inline
 __device__
 bool check_edges(const point_t& p1, const point_t& p2, const point_t& p3,
@@ -27,6 +38,9 @@ bool check_edges(const point_t& p1, const point_t& p2, const point_t& p3,
     return (res1 >= 0 && res2 >= 0 && res3 >= 0) || (res1 < 0 && res2 < 0 && res3 < 0);
 }
 
+/**
+ * Returns a random color
+ */
 inline
 color_t random_color()
 {

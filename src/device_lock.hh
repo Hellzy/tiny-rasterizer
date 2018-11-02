@@ -3,7 +3,7 @@
 
 /**
  * Simple wrapper around atomicCAS and atomicExch to simulate mutual
- * exclusion between threads
+ * exclusion between blocks.
  */
 
 class DeviceLock
