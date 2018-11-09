@@ -3,11 +3,15 @@ CPPFLAGS=-Iinclude/obj-parser/src -Iinclude/ -I/opt/cuda/include
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -pedantic
 LDFLAGS=-Linclude/obj-parser/ -L/opt/cuda/lib64
 LDLIBS=-lm -lobjparser -lcudart
-CUFLAGS= -lineinfo -std=c++14
+CUFLAGS= -std=c++14
+
+ifdef INFO
+	CUFLAGS += -res-usage --nvlink-options=--verbose -lineinfo
+endif
 
 ifdef DEBUG
 CXXFLAGS += -O0 -g
-CUFLAGS += -O0 -g
+CUFLAGS += -O0 -g -G
 else
 CXXFLAGS += -O3
 CUFLAGS += -O3
@@ -15,7 +19,7 @@ endif
 
 PPMDIR=output
 BIN=rasterizer
-CUOBJS=$(addprefix src/, gpu_operations.o device_bitset.o)
+CUOBJS=$(addprefix src/, gpu_operations.o device_vector.o device_lock.o)
 OBJS=$(addprefix src/, main.o rasterizer.o input_parser.o) $(CUOBJS)
 
 ifdef BENCH
@@ -25,10 +29,10 @@ endif
 all: libs $(BIN)
 
 $(BIN): $(OBJS)
-	nvcc $(CPPFLAGS) -lineinfo $(LDFLAGS) -o $@ $^ $(LDLIBS)
+	nvcc $(CPPFLAGS) $(CUFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.cu
-	nvcc $(CPPFLAGS) -dc $< -o $@
+	nvcc $(CPPFLAGS) $(CUFLAGS) -dc $< -o $@
 
 libs:
 	make -C include/

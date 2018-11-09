@@ -5,7 +5,6 @@
   accelerate data tranfers                              [~]
 - use cuda streams (transfer/computation overlap)
 
-- Use int/long rather than bool in bitset to avoid a
-  full mesh traversal (i.e first value holding -1
-  means the end of mesh list)
 - Sort meshes depending on z coord => early discard
+- Reduce memory consumption
+- Accelerate tile dispatch
