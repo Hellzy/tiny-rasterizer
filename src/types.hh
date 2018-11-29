@@ -30,6 +30,7 @@ struct BoundingBox
     point_t top_r;
     point_t bot_l;
     point_t bot_r;
+    double z;
 };
 
 using bbox_t = BoundingBox;

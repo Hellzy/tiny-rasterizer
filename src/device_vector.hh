@@ -38,7 +38,7 @@ private:
 
 private:
     size_t cur_size_ = 0;
-    size_t max_size_ = 10;
+    size_t max_size_ = 100000;
     size_t *data_;
     mutable device_lock_t lock_;
 };

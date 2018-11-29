@@ -208,6 +208,18 @@ device_vec_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb,
     return vecs_d;
 }
 
+static inline
+__device__ color_t interpolate_tex(const mesh_t& mesh, double weights[3])
+{
+    point_t p0{ mesh.v1.tex.x * weights[0], mesh.v1.tex.y * weights[0]};
+    point_t p1{ mesh.v2.tex.x * weights[1], mesh.v2.tex.y * weights[1]};
+    point_t p2{ mesh.v3.tex.x * weights[2], mesh.v3.tex.y * weights[2]};
+
+    point_t p{p0.x + p1.x + p2.x, p0.y + p1.y + p2.y, 0};
+
+    return { 0, 0, 0 };
+}
+
 __global__ void cuda_draw_mesh(mesh_t* meshes, size_t mesh_nb, color_t* screen, size_t screen_w,
         size_t screen_h, device_vec_t* vecs)
 {
@@ -250,12 +262,9 @@ __global__ void cuda_draw_mesh(mesh_t* meshes, size_t mesh_nb, color_t* screen, 
             {
                 best_z = z;
 
-#if 0
-                //Deactivated, gotta find a good way to compute colors
-                volatile double ratio = (double)(i + 1) / vec->size();
-                screen[idx] = {ratio * 255.0, ratio * 255.0, ratio * 255.0};
-#endif
-                screen[idx] = {255.0, 255.0, 255.0};
+                double w[] = { w0, w1, w2 };
+                interpolate_tex(mesh, w);
+                screen[idx] = {w0 * 255.0, w1 * 255.0, w2 * 255.0};
             }
         }
     }
