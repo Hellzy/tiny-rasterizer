@@ -29,10 +29,11 @@ endif
 all: libs $(BIN)
 
 $(BIN): $(OBJS)
-	nvcc $(CPPFLAGS) $(CUFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+	nvcc --compiler-options '-fPIC' -dlink -o src/link.o $^
+	$(LINK.cc) -Wl,-rpath-link,include/obj-parser/mtl-parser -Wl,-rpath,include/obj-parser:include/obj-parser/mtl-parser -o $@ $^ src/link.o $(LDLIBS)
 
 %.o: %.cu
-	nvcc $(CPPFLAGS) $(CUFLAGS) -dc $< -o $@
+	nvcc $(CPPFLAGS) $(CUFLAGS) --compiler-options '-fPIC' -dc $< -o $@
 
 libs:
 	make -C include/
