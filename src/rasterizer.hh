@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "types.hh"
+#include "parser.hh"
 
 class Rasterizer
 {
@@ -27,6 +28,7 @@ public:
 private:
     thrust::host_vector<mesh_t, pinned_alloc_t<mesh_t>> meshes_;
     thrust::host_vector<color_t, pinned_alloc_t<color_t>> screen_;
+    std::vector<dev_mat_t> mats_;
 
     cam_t cam_;
     size_t screen_w_;

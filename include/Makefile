@@ -4,4 +4,4 @@ all:
 	make -C $(DIRS)
 
 clean:
-	make clean -C $(DIRS)
+	make clean-all -C $(DIRS)

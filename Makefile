@@ -1,8 +1,8 @@
 CXX=g++
-CPPFLAGS=-Iinclude/obj-parser/src -Iinclude/ -I/opt/cuda/include
+CPPFLAGS=-Iinclude/obj-parser/src -Iinclude/ -I/opt/cuda/include -Iinclude/obj-parser/mtl-parser/src
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -pedantic
-LDFLAGS=-Linclude/obj-parser/ -L/opt/cuda/lib64
-LDLIBS=-lm -lobjparser -lcudart
+LDFLAGS=
+LDLIBS=-lm -Linclude/obj-parser/ -lobjparser -Linclude/obj-parser/mtl-parser -lmtlparser -L/opt/cuda/lib64 -lcudart
 CUFLAGS= -std=c++14
 
 ifdef INFO
@@ -39,7 +39,7 @@ libs:
 	make -C include/
 
 clean:
-	$(RM) $(OBJS) $(BIN) $(PPMDIR)/* $(CUOBJS)
+	$(RM) $(OBJS) $(BIN) $(PPMDIR)/* $(CUOBJS) src/link.o
 
 clean-all: clean
 	make clean -C include/

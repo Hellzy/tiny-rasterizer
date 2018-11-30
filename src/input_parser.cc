@@ -2,7 +2,6 @@
 #include <ios>
 
 #include "input_parser.hh"
-#include "parser.hh"
 
 InputParser::InputParser()
 {
@@ -22,6 +21,7 @@ void InputParser::load(const std::string& filename)
 
     vertices_ = parser.vertices_get();
     meshes_ = parser.meshes_get();
+    mats_ = parser.mats_get();
 }
 
 void InputParser::parse_cfg()
