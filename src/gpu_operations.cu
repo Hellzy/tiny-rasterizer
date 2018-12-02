@@ -209,19 +209,44 @@ device_vec_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb,
 }
 
 static inline
-__device__ color_t interpolate_tex(const mesh_t& mesh, double weights[3])
+__device__ color_t interpolate_tex(const mesh_t& mesh, double weights[3],
+        dev_mat_t* mats, size_t mats_nb)
 {
     point_t p0{ mesh.v1.tex.x * weights[0], mesh.v1.tex.y * weights[0]};
     point_t p1{ mesh.v2.tex.x * weights[1], mesh.v2.tex.y * weights[1]};
     point_t p2{ mesh.v3.tex.x * weights[2], mesh.v3.tex.y * weights[2]};
 
-    point_t p{p0.x + p1.x + p2.x, p0.y + p1.y + p2.y, 0};
+    dev_mat_t& mat = mats[mesh.mat_idx];
 
-    return { 0, 0, 0 };
+    double u = p0.x + p1.x + p2.x;
+    double v = p0.y + p1.y + p2.y;
+
+    /* Interpolation, here simply getting nearest neighbourg */
+    while (u < 0.)
+        u += 1.;
+
+    while (u > 1.)
+        u -= 1.;
+
+    while (v < 0.)
+        v += 1.;
+
+    while (v > 1.)
+        v -= 1.;
+
+    size_t x = u * (double)mat.tex_w;
+    size_t y = v * (double)mat.tex_h;
+
+    auto vec = mat.kd_map[mat.tex_w * y + x];
+
+    //printf("vec.x = %f | vec.y = %f | vec.z = %f\n", vec.x, vec.y, vec.z);
+    return color_t{vec.x, vec.y, vec.z};
+
 }
 
-__global__ void cuda_draw_mesh(mesh_t* meshes, size_t mesh_nb, color_t* screen, size_t screen_w,
-        size_t screen_h, device_vec_t* vecs)
+__global__ void cuda_draw_mesh(mesh_t* meshes, size_t mesh_nb, color_t* screen,
+        size_t screen_w, size_t screen_h, device_vec_t* vecs, dev_mat_t* mats,
+        size_t mats_nb)
 {
     size_t x = blockIdx.x * blockDim.x + threadIdx.x;
     size_t y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -263,15 +288,17 @@ __global__ void cuda_draw_mesh(mesh_t* meshes, size_t mesh_nb, color_t* screen, 
                 best_z = z;
 
                 double w[] = { w0, w1, w2 };
-                interpolate_tex(mesh, w);
-                screen[idx] = {w0 * 255.0, w1 * 255.0, w2 * 255.0};
+                //interpolate_tex(mesh, w, mats, mats_nb);
+                //screen[idx] = {w0 * 255.0, w1 * 255.0, w2 * 255.0};
+                screen[idx] = interpolate_tex(mesh, w, mats, mats_nb);
             }
         }
     }
 }
 
 void draw_mesh_kernel(host_vec_t<color_t>& screen, size_t screen_w, size_t screen_h,
-        mesh_t* meshes_d, size_t mesh_nb, device_vec_t* vecs)
+        mesh_t* meshes_d, size_t mesh_nb, device_vec_t* vecs, dev_mat_t* mats,
+        size_t mats_nb)
 {
     color_t* screen_d = nullptr;
 
@@ -285,7 +312,8 @@ void draw_mesh_kernel(host_vec_t<color_t>& screen, size_t screen_w, size_t scree
     auto blockDim = dim3(32, 32);
     auto gridDim = dim3(std::ceil(screen_w / blockDim.x), std::ceil(screen_h / blockDim.y));
 
-    cuda_draw_mesh<<<gridDim, blockDim>>>(meshes_d, mesh_nb, screen_d, screen_w, screen_h, vecs);
+    cuda_draw_mesh<<<gridDim, blockDim>>>(meshes_d, mesh_nb, screen_d, screen_w,
+            screen_h, vecs, mats, mats_nb);
 
     cudaMemcpy(screen.data(), screen_d, sizeof(color_t) * screen.size(), cudaMemcpyDeviceToHost);
     cudaFree(screen_d);

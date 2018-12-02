@@ -3,6 +3,7 @@
 
 #include "device_vector.hh"
 #include "utils.hh"
+#include "input_parser.hh"
 
 /*
  * Projects every point of the scene in raster space
@@ -43,7 +44,8 @@ device_vec_t* tiles_dispatch_kernel(mesh_t* meshes_d, size_t mesh_nb, size_t scr
  * - vecs: array of device vectors holding mesh indices (one vector per tile).
  */
 void draw_mesh_kernel(host_vec_t<color_t>& screen, size_t screen_w, size_t screen_h,
-        mesh_t* meshes_d, size_t mesh_nb, device_vec_t* vecs);
+        mesh_t* meshes_d, size_t mesh_nb, device_vec_t* vecs, dev_mat_t* mats,
+        size_t mats_nb);
 
 
 /**

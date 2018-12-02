@@ -17,6 +17,7 @@ void Rasterizer::load_scene(const std::string& filename)
     screen_w_ = parser.screen_width_get();
     screen_h_ = parser.screen_height_get();
     screen_ = std::vector<color_t>(screen_w_ * screen_h_);
+    mats_ = parser.mats_get();
 }
 
 void Rasterizer::write_scene(const std::string& filename) const
@@ -55,8 +56,14 @@ void Rasterizer::gpu_compute()
     auto vecs_d = tiles_dispatch_kernel(meshes_d,  meshes_.size(),
             screen_w_, screen_h_);
 
-    draw_mesh_kernel(screen_, screen_w_, screen_h_, meshes_d, meshes_.size(), vecs_d);
+    dev_mat_t* mats_d = nullptr;
+    cudaMalloc(&mats_d, sizeof(dev_mat_t) * mats_.size());
+    cudaMemcpy(mats_d, mats_.data(), sizeof(dev_mat_t) * mats_.size(), cudaMemcpyHostToDevice);
+
+    draw_mesh_kernel(screen_, screen_w_, screen_h_, meshes_d, meshes_.size(),
+            vecs_d, mats_d, mats_.size());
 
     cudaFree(meshes_d);
     cudaFree(vecs_d);
+    cudaFree(mats_d);
 }
